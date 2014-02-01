@@ -12,21 +12,32 @@ import android.os.Build;
 import android.os.Handler;
 import android.widget.Toast;
 
-public class SoundTouchPlayable implements Runnable
+public abstract class SoundTouchPlayableBase implements Runnable
 {
+	public interface PlaybackProgressListener
+	{
+		void onProgressChanged(int track, double currentPercentage, long position);
+	}
+
+	public interface AudioReceiver
+	{
+		int write(byte[] audioData, int offsetInBytes, int sizeInBytes);
+	}
+
 	private Object pauseLock;
-	private Object trackLock;
 	private Object decodeLock;
 
 	private Handler handler;
 	private PlaybackProgressListener playbackListener;
 	private SoundTouch soundTouch;
-	private volatile AudioTrack track;
 	private Mp3Decoder decoder;
+	private AudioReceiver audioReceiver;
 	private String fileName;
 	private int id;
 
 	private volatile boolean paused, finished;
+	
+	protected int channels, samplingRate;
 
 	public void setTempo(float tempo)
 	{
@@ -52,21 +63,13 @@ public class SoundTouchPlayable implements Runnable
 	{
 		return paused;
 	}
-	
+
 	public long getDuration()
 	{
 		return decoder.getDuration();
 	}
-
-	public SoundTouchPlayable(PlaybackProgressListener playbackListener, String fileName, int id, float tempo, float pitchSemi)
-			throws IOException
-	{
-		this(fileName, id, tempo, pitchSemi);
-		this.playbackListener = playbackListener;
-	}
-
-	public SoundTouchPlayable(String fileName, int id, float tempo, float pitchSemi)
-			throws IOException
+	
+	protected void initDecoder(String fileName) throws IOException
 	{
 		if (Build.VERSION.SDK_INT >= 16)
 		{
@@ -76,21 +79,34 @@ public class SoundTouchPlayable implements Runnable
 		{
 			decoder = new JLayerMp3Decoder(fileName);
 		}
-
+		
+		channels = decoder.getChannels();
+		samplingRate = decoder.getSamplingRate();
+	}
+	protected void init(PlaybackProgressListener playbackListener, AudioReceiver receiver, String fileName, 
+			int id, float tempo, float pitchSemi) throws IOException
+	{
+		this.playbackListener = playbackListener;
+		init(receiver, fileName, id, tempo, pitchSemi);
+	}
+	
+	protected void init(AudioReceiver audioReceiver, String fileName, int id, float tempo, float pitchSemi) 
+	{	
+		this.audioReceiver = audioReceiver;
 		this.fileName = fileName;
 		this.id = id;
 
 		handler = new Handler();
 
 		pauseLock = new Object();
-		trackLock = new Object();
 		decodeLock = new Object();
 
 		paused = true;
 		finished = false;
 
-		setupAudio(id, tempo, pitchSemi);
+		setupSoundTouch(id, tempo, pitchSemi);
 	}
+
 
 	private void pauseWait()
 	{
@@ -132,14 +148,10 @@ public class SoundTouchPlayable implements Runnable
 		finally
 		{
 			soundTouch.clearBuffer();
-
-			synchronized (trackLock)
-			{
-				track.pause();
-				track.flush();
-				track.release();
-			}
-
+			/*
+			 * synchronized (trackLock) { track.pause(); track.flush();
+			 * track.release(); }
+			 */
 			decoder.close();
 		}
 	}
@@ -156,30 +168,12 @@ public class SoundTouchPlayable implements Runnable
 			throw new SoundTouchAndroidException("" + timeInUs + " Not a valid seek time.");
 
 		this.pause();
-		synchronized (trackLock)
-		{
-			track.flush();
-		}
+
 		soundTouch.clearBuffer();
+
 		synchronized (decodeLock)
 		{
 			decoder.seek(timeInUs);
-		}
-	}
-
-	public int getSessionId()
-	{
-		return track.getAudioSessionId();
-	}
-
-	/*
-	 * public AudioTrack getAudioTrack() { return track; }
-	 */
-	public void setVolume(float left, float right)
-	{
-		synchronized (trackLock)
-		{
-			track.setStereoVolume(left, right);
 		}
 	}
 
@@ -187,10 +181,6 @@ public class SoundTouchPlayable implements Runnable
 	{
 		synchronized (pauseLock)
 		{
-			synchronized (trackLock)
-			{
-				track.play();
-			}
 			paused = false;
 			finished = false;
 			pauseLock.notifyAll();
@@ -201,10 +191,6 @@ public class SoundTouchPlayable implements Runnable
 	{
 		synchronized (pauseLock)
 		{
-			synchronized (trackLock)
-			{
-				track.pause();
-			}
 			paused = true;
 		}
 	}
@@ -222,24 +208,9 @@ public class SoundTouchPlayable implements Runnable
 		finished = true;
 	}
 
-	private void setupAudio(int id, float tempo, float pitchSemi)
+	private void setupSoundTouch(int id, float tempo, float pitchSemi)
 	{
-		int channels = decoder.getChannels();
-		int samplingRate = decoder.getSamplingRate();
-
-		int channelFormat = -1;
-
-		if (channels == 1) // mono
-			channelFormat = AudioFormat.CHANNEL_OUT_MONO;
-		else if (channels == 2) // stereo
-			channelFormat = AudioFormat.CHANNEL_OUT_STEREO;
-		else
-			throw new SoundTouchAndroidException("Valid channel count is 1 or 2");
-
 		soundTouch = new SoundTouch(id, channels, samplingRate, DEFAULT_BYTES_PER_SAMPLE, tempo, pitchSemi);
-
-		track = new AudioTrack(AudioManager.STREAM_MUSIC, samplingRate, channelFormat,
-				AudioFormat.ENCODING_PCM_16BIT, BUFFER_SIZE_TRACK, AudioTrack.MODE_STREAM);
 	}
 
 	private void playFile() throws SoundTouchAndroidException
@@ -254,35 +225,7 @@ public class SoundTouchPlayable implements Runnable
 			if (finished)
 				break;
 
-			if (soundTouch.getOutputBufferSize() <= MAX_OUTPUT_BUFFER_SIZE)
-			{
-				synchronized (decodeLock)
-				{
-					input = decoder.decodeChunk();
-
-					if (playbackListener != null)
-					{
-						handler.post(new Runnable()
-						{
-
-							@Override
-							public void run()
-							{
-								long pd = decoder.getPlayedDuration();
-								long d = decoder.getDuration();
-								double cp = pd == 0 ? 0 : (double) pd / d;
-								playbackListener.onProgressChanged(id, cp, pd);
-							}
-						});
-					}
-				}
-
-				processChunk(input, true);
-			}
-			else
-			{
-				processChunk(input, false);
-			}
+			bytesReceived = advancePlayback(input);
 		}
 		while (!decoder.sawOutputEOS());
 
@@ -292,9 +235,44 @@ public class SoundTouchPlayable implements Runnable
 		{
 			if (finished)
 				break;
+
 			bytesReceived = processChunk(input, false);
 		}
 		while (bytesReceived > 0);
+	}
+
+	// return the number of bytes ready to be written
+	private int advancePlayback(byte[] input)
+	{
+		if (soundTouch.getOutputBufferSize() <= MAX_OUTPUT_BUFFER_SIZE)
+		{
+			synchronized (decodeLock)
+			{
+				input = decoder.decodeChunk();
+
+				if (playbackListener != null)
+				{
+					handler.post(new Runnable()
+					{
+
+						@Override
+						public void run()
+						{
+							long pd = decoder.getPlayedDuration();
+							long d = decoder.getDuration();
+							double cp = pd == 0 ? 0 : (double) pd / d;
+							playbackListener.onProgressChanged(id, cp, pd);
+						}
+					});
+				}
+			}
+
+			return processChunk(input, true);
+		}
+		else
+		{
+			return processChunk(input, false);
+		}
 	}
 
 	private int processChunk(final byte[] input, boolean putBytes) throws SoundTouchAndroidException
@@ -307,13 +285,10 @@ public class SoundTouchPlayable implements Runnable
 				soundTouch.putBytes(input);
 
 			bytesReceived = soundTouch.getBytes(input);
-
-			synchronized (trackLock)
-			{
-				track.write(input, 0, bytesReceived);
-			}
-
 		}
+		
+		audioReceiver.write(input, 0, bytesReceived);
+		
 		return bytesReceived;
 	}
 }
