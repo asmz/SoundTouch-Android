@@ -49,7 +49,7 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 	
 	public int getSessionId()
 	{
-		return track.getSessionId();
+		return track.getAudioSessionId();
 	}
 	
 	public void setVolume(float left, float right)

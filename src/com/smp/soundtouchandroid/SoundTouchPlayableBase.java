@@ -21,7 +21,7 @@ public abstract class SoundTouchPlayableBase implements Runnable
 
 	public interface AudioReceiver
 	{
-		int writeAudioData(byte[] audioData, int offsetInBytes, int sizeInBytes);
+		int write(byte[] audioData, int offsetInBytes, int sizeInBytes);
 	}
 
 	private Object pauseLock;
@@ -279,7 +279,7 @@ public abstract class SoundTouchPlayableBase implements Runnable
 
 			synchronized (receiverLock)
 			{
-				audioReceiver.writeAudioData(input, 0, bytesReceived);
+				audioReceiver.write(input, 0, bytesReceived);
 			}
 
 		}
