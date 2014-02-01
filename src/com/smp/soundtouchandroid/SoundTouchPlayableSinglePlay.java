@@ -23,6 +23,14 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 		setupAudioTrack(fileName, id, tempo, pitchSemi);
 		init(track, fileName, id, tempo, pitchSemi);	
 	}
+	
+	public SoundTouchPlayableSinglePlay(PlaybackProgressListener playbackListener, String fileName, 
+			int id, float tempo, float pitchSemi) throws IOException
+	{
+		setupAudioTrack(fileName, id, tempo, pitchSemi);
+		init(playbackListener, track, fileName, id, tempo, pitchSemi);
+	}
+	
 	private void setupAudioTrack(String fileName, int id, float tempo, float pitchSemi) throws IOException
 	{
 		initDecoder(fileName);
@@ -39,12 +47,6 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 		track = new ReceivingAudioTrack(AudioManager.STREAM_MUSIC, samplingRate, channelFormat,
 				AudioFormat.ENCODING_PCM_16BIT, BUFFER_SIZE_TRACK, AudioTrack.MODE_STREAM);
 			
-	}
-	public SoundTouchPlayableSinglePlay(PlaybackProgressListener playbackListener, String fileName, 
-			int id, float tempo, float pitchSemi) throws IOException
-	{
-		setupAudioTrack(fileName, id, tempo, pitchSemi);
-		init(playbackListener, track, fileName, id, tempo, pitchSemi);
 	}
 	
 	public int getSessionId()
