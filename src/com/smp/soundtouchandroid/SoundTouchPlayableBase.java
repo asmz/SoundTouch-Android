@@ -21,11 +21,12 @@ public abstract class SoundTouchPlayableBase implements Runnable
 
 	public interface AudioReceiver
 	{
-		int write(byte[] audioData, int offsetInBytes, int sizeInBytes);
+		int writeAudioData(byte[] audioData, int offsetInBytes, int sizeInBytes);
 	}
 
 	private Object pauseLock;
 	private Object decodeLock;
+	protected Object receiverLock;
 
 	private Handler handler;
 	private PlaybackProgressListener playbackListener;
@@ -100,6 +101,7 @@ public abstract class SoundTouchPlayableBase implements Runnable
 
 		pauseLock = new Object();
 		decodeLock = new Object();
+		receiverLock = new Object();
 
 		paused = true;
 		finished = false;
@@ -148,10 +150,6 @@ public abstract class SoundTouchPlayableBase implements Runnable
 		finally
 		{
 			soundTouch.clearBuffer();
-			/*
-			 * synchronized (trackLock) { track.pause(); track.flush();
-			 * track.release(); }
-			 */
 			decoder.close();
 		}
 	}
@@ -225,7 +223,35 @@ public abstract class SoundTouchPlayableBase implements Runnable
 			if (finished)
 				break;
 
-			bytesReceived = advancePlayback(input);
+			if (soundTouch.getOutputBufferSize() <= MAX_OUTPUT_BUFFER_SIZE)
+			{
+				synchronized (decodeLock)
+				{
+					input = decoder.decodeChunk();
+
+					if (playbackListener != null)
+					{
+						handler.post(new Runnable()
+						{
+
+							@Override
+							public void run()
+							{
+								long pd = decoder.getPlayedDuration();
+								long d = decoder.getDuration();
+								double cp = pd == 0 ? 0 : (double) pd / d;
+								playbackListener.onProgressChanged(id, cp, pd);
+							}
+						});
+					}
+				}
+
+				processChunk(input, true);
+			}
+			else
+			{
+				processChunk(input, false);
+			}
 		}
 		while (!decoder.sawOutputEOS());
 
@@ -235,44 +261,9 @@ public abstract class SoundTouchPlayableBase implements Runnable
 		{
 			if (finished)
 				break;
-
 			bytesReceived = processChunk(input, false);
 		}
 		while (bytesReceived > 0);
-	}
-
-	// return the number of bytes ready to be written
-	private int advancePlayback(byte[] input)
-	{
-		if (soundTouch.getOutputBufferSize() <= MAX_OUTPUT_BUFFER_SIZE)
-		{
-			synchronized (decodeLock)
-			{
-				input = decoder.decodeChunk();
-
-				if (playbackListener != null)
-				{
-					handler.post(new Runnable()
-					{
-
-						@Override
-						public void run()
-						{
-							long pd = decoder.getPlayedDuration();
-							long d = decoder.getDuration();
-							double cp = pd == 0 ? 0 : (double) pd / d;
-							playbackListener.onProgressChanged(id, cp, pd);
-						}
-					});
-				}
-			}
-
-			return processChunk(input, true);
-		}
-		else
-		{
-			return processChunk(input, false);
-		}
 	}
 
 	private int processChunk(final byte[] input, boolean putBytes) throws SoundTouchAndroidException
@@ -285,10 +276,13 @@ public abstract class SoundTouchPlayableBase implements Runnable
 				soundTouch.putBytes(input);
 
 			bytesReceived = soundTouch.getBytes(input);
+
+			synchronized (receiverLock)
+			{
+				audioReceiver.writeAudioData(input, 0, bytesReceived);
+			}
+
 		}
-		
-		audioReceiver.write(input, 0, bytesReceived);
-		
 		return bytesReceived;
 	}
 }

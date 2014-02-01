@@ -17,7 +17,6 @@ import android.widget.Toast;
 public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 {
 	private ReceivingAudioTrack track;
-	private Object trackLock;
 	
 	public SoundTouchPlayableSinglePlay(String fileName, int id, float tempo, float pitchSemi) throws IOException
 	{
@@ -39,8 +38,7 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 		
 		track = new ReceivingAudioTrack(AudioManager.STREAM_MUSIC, samplingRate, channelFormat,
 				AudioFormat.ENCODING_PCM_16BIT, BUFFER_SIZE_TRACK, AudioTrack.MODE_STREAM);
-		
-		trackLock = new Object();	
+			
 	}
 	public SoundTouchPlayableSinglePlay(PlaybackProgressListener playbackListener, String fileName, 
 			int id, float tempo, float pitchSemi) throws IOException
@@ -51,12 +49,12 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 	
 	public int getSessionId()
 	{
-		return track.getAudioSessionId();
+		return track.getSessionId();
 	}
 	
 	public void setVolume(float left, float right)
 	{
-		synchronized (trackLock)
+		synchronized (receiverLock)
 		{
 			track.setStereoVolume(left, right);
 		}
@@ -71,7 +69,7 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 		}
 		finally
 		{
-			synchronized (trackLock)
+			synchronized (receiverLock)
 			{
 				track.pause();
 				track.flush();
@@ -84,7 +82,7 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 	public void seekTo(long timeInUs)
 	{
 		super.seekTo(timeInUs);
-		synchronized (trackLock)
+		synchronized (receiverLock)
 		{
 			track.flush();
 		}
@@ -94,7 +92,7 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 	public void play()
 	{
 		//track.play() must be first.
-		synchronized (trackLock)
+		synchronized (receiverLock)
 		{
 			track.play();
 		}
@@ -105,7 +103,7 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 	@Override
 	public void pause()
 	{
-		synchronized (trackLock)
+		synchronized (receiverLock)
 		{
 			track.pause();
 		}
