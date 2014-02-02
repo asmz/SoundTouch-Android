@@ -2,13 +2,13 @@ package com.smp.soundtouchandroid;
 
 import java.util.concurrent.ArrayBlockingQueue;
 
-import com.smp.soundtouchandroid.SoundTouchPlayableBase.AudioReceiver;
+import com.smp.soundtouchandroid.SoundTouchPlayableBase.AudioConsumer;
 
-public class ReceivingBlockingQueue extends ArrayBlockingQueue<Byte> implements AudioReceiver
+public class AudioConsumingBlockingQueue extends ArrayBlockingQueue<Byte> implements AudioConsumer
 {
 	private static final long serialVersionUID = 956871709771983993L;
 
-	public ReceivingBlockingQueue(int capacity)
+	public AudioConsumingBlockingQueue(int capacity)
 	{
 		super(capacity);
 	}

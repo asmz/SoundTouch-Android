@@ -19,7 +19,7 @@ public abstract class SoundTouchPlayableBase implements Runnable
 		void onProgressChanged(int track, double currentPercentage, long position);
 	}
 
-	public interface AudioReceiver
+	public interface AudioConsumer
 	{
 		int write(byte[] audioData, int offsetInBytes, int sizeInBytes);
 	}
@@ -32,12 +32,13 @@ public abstract class SoundTouchPlayableBase implements Runnable
 	private PlaybackProgressListener playbackListener;
 	private SoundTouch soundTouch;
 	private Mp3Decoder decoder;
-	private AudioReceiver audioReceiver;
+	private AudioConsumer audioConsumer;
 	private String fileName;
 	private int id;
+	private boolean bypassSoundTouch;
 
 	private volatile boolean paused, finished;
-	
+
 	protected int channels, samplingRate;
 
 	public void setTempo(float tempo)
@@ -55,6 +56,12 @@ public abstract class SoundTouchPlayableBase implements Runnable
 		soundTouch.setPitchSemi(pitchSemi);
 	}
 
+	// set true before play().
+	public void setBypassSoundTouch(boolean bypassSoundTouch)
+	{
+		this.bypassSoundTouch = bypassSoundTouch;
+	}
+
 	public String getFileName()
 	{
 		return fileName;
@@ -69,7 +76,7 @@ public abstract class SoundTouchPlayableBase implements Runnable
 	{
 		return decoder.getDuration();
 	}
-	
+
 	protected void initDecoder(String fileName) throws IOException
 	{
 		if (Build.VERSION.SDK_INT >= 16)
@@ -80,20 +87,21 @@ public abstract class SoundTouchPlayableBase implements Runnable
 		{
 			decoder = new JLayerMp3Decoder(fileName);
 		}
-		
+
 		channels = decoder.getChannels();
 		samplingRate = decoder.getSamplingRate();
 	}
-	protected void init(PlaybackProgressListener playbackListener, AudioReceiver receiver, String fileName, 
+
+	protected void init(PlaybackProgressListener playbackListener, AudioConsumer receiver, String fileName,
 			int id, float tempo, float pitchSemi) throws IOException
 	{
 		this.playbackListener = playbackListener;
 		init(receiver, fileName, id, tempo, pitchSemi);
 	}
-	
-	protected void init(AudioReceiver audioReceiver, String fileName, int id, float tempo, float pitchSemi) 
-	{	
-		this.audioReceiver = audioReceiver;
+
+	protected void init(AudioConsumer audioReceiver, String fileName, int id, float tempo, float pitchSemi)
+	{
+		this.audioConsumer = audioReceiver;
 		this.fileName = fileName;
 		this.id = id;
 
@@ -108,7 +116,6 @@ public abstract class SoundTouchPlayableBase implements Runnable
 
 		setupSoundTouch(id, tempo, pitchSemi);
 	}
-
 
 	private void pauseWait()
 	{
@@ -272,14 +279,20 @@ public abstract class SoundTouchPlayableBase implements Runnable
 
 		if (input != null)
 		{
-			if (putBytes)
-				soundTouch.putBytes(input);
+			if (bypassSoundTouch)
+			{
+				bytesReceived = input.length;
+			}
+			else
+			{
+				if (putBytes)
+					soundTouch.putBytes(input);
 
-			bytesReceived = soundTouch.getBytes(input);
-
+				bytesReceived = soundTouch.getBytes(input);
+			}
 			synchronized (receiverLock)
 			{
-				audioReceiver.write(input, 0, bytesReceived);
+				audioConsumer.write(input, 0, bytesReceived);
 			}
 
 		}

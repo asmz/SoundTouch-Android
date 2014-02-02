@@ -16,7 +16,7 @@ import android.widget.Toast;
 
 public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 {
-	private ReceivingAudioTrack track;
+	private AudioConsumingAudioTrack track;
 	
 	public SoundTouchPlayableSinglePlay(String fileName, int id, float tempo, float pitchSemi) throws IOException
 	{
@@ -44,7 +44,7 @@ public class SoundTouchPlayableSinglePlay extends SoundTouchPlayableBase
 		else
 			throw new SoundTouchAndroidException("Valid channel count is 1 or 2");
 		
-		track = new ReceivingAudioTrack(AudioManager.STREAM_MUSIC, samplingRate, channelFormat,
+		track = new AudioConsumingAudioTrack(AudioManager.STREAM_MUSIC, samplingRate, channelFormat,
 				AudioFormat.ENCODING_PCM_16BIT, BUFFER_SIZE_TRACK, AudioTrack.MODE_STREAM);
 			
 	}
