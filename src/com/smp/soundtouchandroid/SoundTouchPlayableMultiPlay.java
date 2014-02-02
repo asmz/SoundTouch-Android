@@ -11,6 +11,7 @@ import com.smp.soundtouchandroid.SoundTouchPlayableBase.PlaybackProgressListener
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.util.Log;
 
 public class SoundTouchPlayableMultiPlay extends SoundTouchPlayableBase
 {	
@@ -18,7 +19,7 @@ public class SoundTouchPlayableMultiPlay extends SoundTouchPlayableBase
 	
 	AudioConsumingBlockingQueue queue;
 	{
-		queue = new AudioConsumingBlockingQueue(MAX_OUTPUT_BUFFER_SIZE);
+		queue = new AudioConsumingBlockingQueue(8192);
 	}
 	public SoundTouchPlayableMultiPlay(String fileName, int id, float tempo, float pitchSemi) throws IOException
 	{
@@ -36,6 +37,8 @@ public class SoundTouchPlayableMultiPlay extends SoundTouchPlayableBase
 	{
 		try
 		{
+			if (queue.isEmpty()) Log.i("QUEUE", "Queue size: " + queue.size());
+			
 			return queue.poll(TIMEOUT_MS, TimeUnit.MILLISECONDS);
 		}
 		catch (InterruptedException e)

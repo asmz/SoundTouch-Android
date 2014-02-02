@@ -137,7 +137,7 @@ public abstract class SoundTouchPlayableBase implements Runnable
 	@Override
 	public void run()
 	{
-		Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+		//Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
 
 		try
 		{

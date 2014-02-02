@@ -16,7 +16,7 @@ public class AudioMixer implements Runnable
 {
 	private static AudioMixer mixer;
 
-	private static final int BUFFER_SIZE = 16384;
+	private static final int BUFFER_SIZE = 4096;
 	private static final int MAX_TRACKS = 16;
 	private static final int SAMPLING_RATE = 44100;
 	private static final int CHANNEL_FORMAT = AudioFormat.CHANNEL_OUT_STEREO;
@@ -45,7 +45,7 @@ public class AudioMixer implements Runnable
 		track = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLING_RATE, CHANNEL_FORMAT,
 				AudioFormat.ENCODING_PCM_16BIT, BUFFER_SIZE_TRACK, AudioTrack.MODE_STREAM);
 	}
-
+	
 	public synchronized boolean isTrackAvailable(int id)
 	{
 		return playables[id] == null;
@@ -174,6 +174,8 @@ public class AudioMixer implements Runnable
 	@Override
 	public void run()
 	{
+		Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+		
 		isRunning = true;
 
 		try
@@ -228,6 +230,7 @@ public class AudioMixer implements Runnable
 		for (int i = 0; i < output.length; ++i)
 		{
 			float mixed = 0;
+			
 			for (SoundTouchPlayableMultiPlay playable : playables)
 			{
 				if (playable != null)
