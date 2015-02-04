@@ -33,6 +33,7 @@ public class AACFileAudioSink implements AudioSink
 				@Override
 				public void run()
 				{
+					/* TODO the catch needs to alert the user */
 					try
 					{
 						encoder.writeChunk(tmp, offSetInBytes, sizeInBytes);
