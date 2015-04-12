@@ -19,4 +19,10 @@ public class AudioTrackAudioSink extends AudioTrack implements AudioSink
 		flush();
 		release();
 	}
+
+	@Override
+	public void abort()
+	{
+		close();
+	}
 }

@@ -108,7 +108,14 @@ public class MediaCodecAudioEncoder implements AudioEncoder
 			return 4;
 		}
 	}
-
+	public int getChannels() 
+	{
+		return channels;
+	}
+	public int getSamplingRate()
+	{
+		return samplingRate;
+	}
 	public void initFileOutput(String fileNameOut) throws IOException
 	{
 		Log.d("FILE", fileNameOut);

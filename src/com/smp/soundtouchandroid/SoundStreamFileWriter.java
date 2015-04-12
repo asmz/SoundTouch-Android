@@ -15,13 +15,24 @@ public class SoundStreamFileWriter extends SoundStreamRunnable implements OnProg
 	{	
 		public void onFinishedWriting(boolean success);
 	}
-
+	@Override
+	public void onAudioFormatChanged(int samplingRate, int channels) throws IOException
+	{
+		boolean changed;
+		changed = samplingRate != this.samplingRate || channels != this.channels;
+		super.onAudioFormatChanged(samplingRate, channels);
+		if (changed)
+		{
+			file.initFileOutputStream(fileNameOut);
+		}
+		
+	}
 	public SoundStreamFileWriter(int id, String fileNameIn, String fileNameOut,
 			float tempo, float pitchSemi) throws IOException
 	{
 		super(id, fileNameIn, tempo, pitchSemi);
 		this.fileNameOut = fileNameOut;
-		file.setFileOutputName(fileNameOut);
+		file.initFileOutputStream(fileNameOut);
 		setOnProgressChangedListener(this);
 	}
 	
@@ -31,7 +42,7 @@ public class SoundStreamFileWriter extends SoundStreamRunnable implements OnProg
 		super(id, fileNameIn, tempo, pitchSemi);
 		setRate(rate);
 		this.fileNameOut = fileNameOut;
-		file.setFileOutputName(fileNameOut);
+		file.initFileOutputStream(fileNameOut);
 		setOnProgressChangedListener(this);
 	}
 	

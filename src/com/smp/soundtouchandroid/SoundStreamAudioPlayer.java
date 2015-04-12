@@ -5,12 +5,13 @@ import java.io.IOException;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.util.Log;
 
 public class SoundStreamAudioPlayer extends SoundStreamRunnable
 {
 	private static final int BUFFER_SIZE_TRACK = 32768;
 
-	private AudioTrackAudioSink track;
+	private volatile AudioTrackAudioSink track;
 
 	public SoundStreamAudioPlayer(int id, String fileName, float tempo,
 			float pitchSemi) throws IOException

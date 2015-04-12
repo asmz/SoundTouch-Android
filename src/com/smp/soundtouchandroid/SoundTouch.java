@@ -73,7 +73,8 @@ public class SoundTouch implements AudioProcessor
 	{
 		this.bytesPerSample = bytesPerSample;
 	}
-
+	
+	//TODO Fix these they don't actually effect the native resource.
 	public void setChannels(int channels)
 	{
 		this.channels = channels;

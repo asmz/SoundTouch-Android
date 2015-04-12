@@ -7,6 +7,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import android.util.Log;
+
 public class AACFileAudioSink implements AudioSink
 {
 	private AudioEncoder encoder;
@@ -19,11 +21,18 @@ public class AACFileAudioSink implements AudioSink
 		encoder = new MediaCodecAudioEncoder(samplingRate, channels);
 		exec = Executors.newSingleThreadExecutor();
 	}
-
+	
+	@Override
+	public void abort()
+	{
+		encoder.close();
+		exec.shutdownNow();
+	}
 	@Override
 	public int write(byte[] input, final int offSetInBytes,
 			final int sizeInBytes) throws IOException
 	{
+		//Log.i("MP3", "before write submitted");
 		final byte[] tmp = Arrays.copyOf(input, input.length);
 		if (!exec.isShutdown())
 		{
@@ -37,6 +46,7 @@ public class AACFileAudioSink implements AudioSink
 					try
 					{
 						encoder.writeChunk(tmp, offSetInBytes, sizeInBytes);
+						//Log.i("MP3", "write finished");
 					}
 					catch (IOException e)
 					{
@@ -59,6 +69,7 @@ public class AACFileAudioSink implements AudioSink
 
 	public void finishWriting() throws IOException
 	{
+		//Log.i("MP3", "FINISH REACHED");
 		finishedWriting = true;
 		exec.submit(new Runnable()
 		{
@@ -67,6 +78,7 @@ public class AACFileAudioSink implements AudioSink
 			{
 				try
 				{
+					//Log.i("MP3", "FINISH IN EXEC REACHED");
 					encoder.finishWriting();
 				}
 				catch (IOException e)
@@ -79,19 +91,19 @@ public class AACFileAudioSink implements AudioSink
 		exec.shutdown();
 		try
 		{
-			exec.awaitTermination(240, TimeUnit.SECONDS);
+			exec.awaitTermination(20, TimeUnit.MINUTES);
 		}
 		catch (InterruptedException e)
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		//Log.i("MP3", "CLOSE REACHED");
 		encoder.close();
 	}
 
-	public void setFileOutputName(String fileNameOut) throws IOException
+	public void initFileOutputStream(String fileNameOut) throws IOException
 	{
 		encoder.initFileOutput(fileNameOut);
 	}
-
 }

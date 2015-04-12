@@ -6,7 +6,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.util.Log;
 
-public abstract class SoundStreamRunnable implements Runnable
+public abstract class SoundStreamRunnable implements Runnable, AudioFormatChangedListener
 {
 	private static final long NOT_SET = Long.MIN_VALUE;
 	protected static final int DEFAULT_BYTES_PER_SAMPLE = 2;
@@ -18,7 +18,7 @@ public abstract class SoundStreamRunnable implements Runnable
 
 	protected volatile long bytesWritten;
 
-	protected SoundTouch soundTouch;
+	protected volatile SoundTouch soundTouch;
 	protected volatile AudioDecoder decoder;
 
 	protected Handler handler;
@@ -34,11 +34,26 @@ public abstract class SoundStreamRunnable implements Runnable
 	private volatile boolean paused;
 	protected volatile boolean finished;
 
-	protected int channels;
-	protected int samplingRate;
+	protected volatile int channels;
+	protected volatile int samplingRate;
 
 	protected abstract AudioSink initAudioSink() throws IOException;
-
+	
+	@Override
+	public void onAudioFormatChanged(int samplingRate, int channels) throws IOException
+	{
+		if (samplingRate != this.samplingRate || channels != this.channels)
+		{
+			this.channels = channels;
+			this.samplingRate = samplingRate;
+			soundTouch.clearBuffer();
+			int id = soundTouch.getTrackId();
+			initSoundTouch(id, soundTouch.getTempo(), soundTouch.getPitchSemi());
+			audioSink.abort();
+			audioSink = initAudioSink();
+			start();
+		}
+	}
 	private void initSoundTouch(int id, float tempo, float pitchSemi)
 	{
 		soundTouch = new SoundTouch(id, channels, samplingRate,
@@ -218,7 +233,7 @@ public abstract class SoundStreamRunnable implements Runnable
 	{
 		if (Build.VERSION.SDK_INT >= 16)
 		{
-			decoder = new MediaCodecAudioDecoder(fileName);
+			decoder = new MediaCodecAudioDecoder(fileName, this);
 		}
 		else
 		{

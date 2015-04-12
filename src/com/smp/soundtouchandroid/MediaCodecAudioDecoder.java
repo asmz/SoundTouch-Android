@@ -51,6 +51,7 @@ public class MediaCodecAudioDecoder implements AudioDecoder
 	private ByteBuffer[] codecInputBuffers;
 	private ByteBuffer[] codecOutputBuffers;
 	private byte[] lastChunk;
+	private AudioFormatChangedListener changedListener;
 	private volatile boolean sawOutputEOS;
 
 	public int getChannels() throws IOException
@@ -81,8 +82,9 @@ public class MediaCodecAudioDecoder implements AudioDecoder
 	FileOutputStream fis = null;
 
 	@SuppressLint("NewApi")
-	public MediaCodecAudioDecoder(String fullPath) throws IOException
+	public MediaCodecAudioDecoder(String fullPath, AudioFormatChangedListener changedListener) throws IOException
 	{
+		this.changedListener = changedListener;
 		Locale locale = Locale.getDefault();
 /*		if (getExtension(fullPath).toLowerCase(locale).equals(".wma"))
 			throw new IOException("WMA file not supported");*/
@@ -93,7 +95,6 @@ public class MediaCodecAudioDecoder implements AudioDecoder
 			extractor = new MediaExtractor();
 			extractor.setDataSource(fullPath);
 		}
-		//Sometimes it works and sometimes it don't....
 		catch (IOException e)
 		{
 			try
@@ -125,17 +126,23 @@ public class MediaCodecAudioDecoder implements AudioDecoder
 		}
 
 		format = extractor.getTrackFormat(0);
-		String mime = format.getString(MediaFormat.KEY_MIME);
 		durationUs = format.getLong(MediaFormat.KEY_DURATION);
+		
+		configureCodec();
 
+		extractor.selectTrack(0);
+		info = new MediaCodec.BufferInfo();
+	}
+	
+	private void configureCodec()
+	{
+		String mime = format.getString(MediaFormat.KEY_MIME);
+		
 		codec = MediaCodec.createDecoderByType(mime);
 		codec.configure(format, null, null, 0);
 		codec.start();
 		codecInputBuffers = codec.getInputBuffers();
 		codecOutputBuffers = codec.getOutputBuffers();
-
-		extractor.selectTrack(0);
-		info = new MediaCodec.BufferInfo();
 	}
 
 	@Override
@@ -197,6 +204,15 @@ public class MediaCodecAudioDecoder implements AudioDecoder
 		else if (res == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED)
 		{
 			format = codec.getOutputFormat();
+			try
+			{
+				changedListener.onAudioFormatChanged(getSamplingRate(), getChannels());
+			}
+			catch (IOException e)
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			Log.d("MP3", "Output format has changed to " + format);
 		}
 
