@@ -134,7 +134,7 @@ public class MediaCodecAudioDecoder implements AudioDecoder
 		info = new MediaCodec.BufferInfo();
 	}
 	
-	private void configureCodec()
+	private void configureCodec() throws IOException
 	{
 		String mime = format.getString(MediaFormat.KEY_MIME);
 		
